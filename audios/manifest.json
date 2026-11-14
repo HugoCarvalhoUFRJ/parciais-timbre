@@ -1,0 +1,148 @@
+[
+  {
+    "arquivo": "la-flauta.wav",
+    "nome": "Flauta",
+    "familia": "Madeiras",
+    "original": "Lá-Flauta.wav"
+  },
+  {
+    "arquivo": "la-flauta-alto.wav",
+    "nome": "Flauta alto",
+    "familia": "Madeiras",
+    "original": "Lá-Flauta_Alto.wav"
+  },
+  {
+    "arquivo": "la-oboe.wav",
+    "nome": "Oboé",
+    "familia": "Madeiras",
+    "original": "Lá-Oboé.wav"
+  },
+  {
+    "arquivo": "la-corne-ingles.wav",
+    "nome": "Corne inglês",
+    "familia": "Madeiras",
+    "original": "Lá-Corne_Inglês.wav"
+  },
+  {
+    "arquivo": "la-clarinete-em-bb.wav",
+    "nome": "Clarinete em Si♭",
+    "familia": "Madeiras",
+    "original": "Lá-Clarinete_em_Bb.wav"
+  },
+  {
+    "arquivo": "la-clarinete-baixo.wav",
+    "nome": "Clarinete baixo",
+    "familia": "Madeiras",
+    "original": "Lá-Clarinete_Baixo.wav"
+  },
+  {
+    "arquivo": "la-saxofone-soprano.wav",
+    "nome": "Saxofone soprano",
+    "familia": "Madeiras",
+    "original": "Lá-Saxofone_Soprano.wav"
+  },
+  {
+    "arquivo": "la-saxofone-alto.wav",
+    "nome": "Saxofone alto",
+    "familia": "Madeiras",
+    "original": "Lá-Saxofone_Alto.wav"
+  },
+  {
+    "arquivo": "la-saxofone-tenor.wav",
+    "nome": "Saxofone tenor",
+    "familia": "Madeiras",
+    "original": "Lá-Saxofone_Tenor.wav"
+  },
+  {
+    "arquivo": "la-saxofone-baritono.wav",
+    "nome": "Saxofone barítono",
+    "familia": "Madeiras",
+    "original": "Lá-Saxofone_Barítono.wav"
+  },
+  {
+    "arquivo": "la-trompa-em-f.wav",
+    "nome": "Trompa em Fá",
+    "familia": "Metais",
+    "original": "Lá-Trompa_em_F.wav"
+  },
+  {
+    "arquivo": "la-trompete-em-bb.wav",
+    "nome": "Trompete em Si♭",
+    "familia": "Metais",
+    "original": "Lá-Trompete_em_Bb.wav"
+  },
+  {
+    "arquivo": "la-trombone-tenor.wav",
+    "nome": "Trombone tenor",
+    "familia": "Metais",
+    "original": "Lá-Trombone_Tenor.wav"
+  },
+  {
+    "arquivo": "la-trombone-baixo.wav",
+    "nome": "Trombone baixo",
+    "familia": "Metais",
+    "original": "Lá-Trombone_Baixo.wav"
+  },
+  {
+    "arquivo": "la-tuba.wav",
+    "nome": "Tuba",
+    "familia": "Metais",
+    "original": "Lá-Tuba.wav"
+  },
+  {
+    "arquivo": "la-violino.wav",
+    "nome": "Violino",
+    "familia": "Cordas",
+    "original": "Lá-Violino.wav"
+  },
+  {
+    "arquivo": "la-viola.wav",
+    "nome": "Viola",
+    "familia": "Cordas",
+    "original": "Lá-Viola.wav"
+  },
+  {
+    "arquivo": "la-violoncelo.wav",
+    "nome": "Violoncelo",
+    "familia": "Cordas",
+    "original": "Lá-Violoncelo.wav"
+  },
+  {
+    "arquivo": "la-contrabaixo.wav",
+    "nome": "Contrabaixo",
+    "familia": "Cordas",
+    "original": "Lá-Contrabaixo.wav"
+  },
+  {
+    "arquivo": "la-harpa.wav",
+    "nome": "Harpa",
+    "familia": "Cordas",
+    "original": "Lá-Harpa.wav"
+  },
+  {
+    "arquivo": "la-piano.wav",
+    "nome": "Piano",
+    "familia": "Teclas e percussão",
+    "original": "Lá-Piano.wav"
+  },
+  {
+    "arquivo": "la-piano-eletrico.wav",
+    "nome": "Piano elétrico",
+    "familia": "Teclas e percussão",
+    "original": "Lá-Piano_Elétrico.wav"
+  },
+  {
+    "arquivo": "la-celesta.wav",
+    "nome": "Celesta",
+    "familia": "Teclas e percussão",
+    "original": "Lá-Celesta.wav"
+  },
+  {
+    "arquivo": "la.wav",
+    "nome": "Tutti (os 23 juntos)",
+    "familia": "Outros",
+    "original": "Lá.wav",
+    "f0Referencia": 55,
+    "nota": "Soma exata dos 23 arquivos; f0 fixada em 55 Hz (Lá do contrabaixo)."
+  }
+]
