@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parciais do Timbre</title>
+  <meta name="description" content="Extração das parciais de timbres instrumentais tocando a nota Lá.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232a78d6'/%3E%3Cpath d='M6 26V8M11 26V13M16 26V17M21 26V20M26 26V22' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/estilo.css">
+  <script>
+    // aplica o tema salvo antes de desenhar a página (evita "piscar")
+    try { const t = localStorage.getItem('parciais-timbre-tema'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/plotly.js-basic-dist-min@2.35.2/plotly-basic.min.js" defer></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="topo">
+    <div class="topo-texto">
+      <h1>Parciais do Timbre</h1>
+      <p data-t="subtitulo"></p>
+    </div>
+    <div class="topo-acoes">
+      <button type="button" class="btn" id="btn-ajuda" data-t="ajuda.botao"></button>
+      <button type="button" class="btn btn-icone" id="btn-tema" title="Alternar tema claro/escuro" aria-label="Alternar tema claro/escuro">◐</button>
+    </div>
+  </header>
+
+  <nav class="abas" role="tablist" aria-label="Seções">
+    <button type="button" role="tab" data-aba="um" data-t="abas.um"></button>
+    <button type="button" role="tab" data-aba="comparar" data-t="abas.comparar"></button>
+    <button type="button" role="tab" data-aba="tabela" data-t="abas.tabela"></button>
+  </nav>
+
+  <main>
+    <div id="erro-global" class="aviso aviso-erro" hidden></div>
+
+    <!-- ================= ABA 1: UM INSTRUMENTO ================= -->
+    <section id="aba-um" class="aba" role="tabpanel">
+
+      <section class="card destaque">
+        <h2><label for="sel-instrumento" data-t="instrumento.titulo"></label></h2>
+        <div class="seletor">
+          <select id="sel-instrumento" class="select-grande"></select>
+        </div>
+        <p class="ajuda" data-t="instrumento.ajuda"></p>
+      </section>
+
+      <section class="card">
+        <h2><span class="passo">1</span><span data-t="trecho.titulo"></span></h2>
+        <p class="ajuda" data-t="trecho.ajuda"></p>
+        <p class="ajuda" data-t="trecho.arrastar"></p>
+        <div class="onda-wrap">
+          <canvas id="onda" height="150" aria-label="Forma de onda com o trecho analisado destacado"></canvas>
+        </div>
+        <div class="trecho-controles">
+          <label>Início (s) <input type="number" id="trecho-ini" step="0.05" min="0"></label>
+          <label>Fim (s) <input type="number" id="trecho-fim" step="0.05" min="0"></label>
+          <span id="trecho-info" class="etiqueta"></span>
+          <button type="button" class="btn" id="btn-trecho-auto" data-t="trecho.automatico"></button>
+        </div>
+        <p class="ajuda pequeno" data-t="trecho.minimo"></p>
+        <div class="linha-botoes">
+          <button type="button" class="btn btn-primario" id="btn-tocar-trecho" data-rotulo="ouvir.trecho"></button>
+          <button type="button" class="btn" id="btn-tocar-tudo" data-rotulo="ouvir.inteira"></button>
+        </div>
+        <p class="ajuda pequeno" data-t="ouvir.ajuda"></p>
+      </section>
+
+      <section class="card">
+        <h2><span class="passo">2</span><span data-t="fundamental.titulo"></span></h2>
+        <p class="ajuda" data-t="fundamental.ajuda"></p>
+        <p class="ajuda" data-t="fundamental.porqueErra"></p>
+        <div class="f0-painel">
+          <div class="f0-leitura" id="f0-leitura" aria-live="polite"></div>
+          <div class="linha-botoes">
+            <button type="button" class="btn" id="btn-oitava-abaixo" data-t="fundamental.oitavaAbaixo"></button>
+            <button type="button" class="btn" id="btn-oitava-acima" data-t="fundamental.oitavaAcima"></button>
+            <button type="button" class="btn" id="btn-f0-auto" data-t="fundamental.voltarAuto"></button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="passo">3</span><span data-t="espectro.titulo"></span></h2>
+        <p class="ajuda" data-t="espectro.ajuda"></p>
+        <p class="ajuda" data-t="espectro.marcas"></p>
+        <div class="espectro-layout">
+          <div id="grafico-espectro" class="grafico grafico-alto"></div>
+          <aside class="espectro-lateral">
+            <fieldset class="opcoes">
+              <legend data-t="nParciais.titulo"></legend>
+              <div class="n-controle">
+                <input type="range" id="n-parciais" min="1" max="20" step="1" aria-label="Número de parciais">
+                <output id="n-valor" for="n-parciais"></output>
+              </div>
+              <p class="ajuda" data-t="nParciais.texto"></p>
+              <p class="ajuda pequeno" data-t="nParciais.obs"></p>
+            </fieldset>
+            <fieldset class="opcoes">
+              <legend data-t="espectro.eixo.titulo"></legend>
+              <label class="opcao"><input type="radio" name="eixo" value="linear">
+                <span><b data-t="espectro.eixo.linear.rotulo"></b><span class="ajuda" data-t="espectro.eixo.linear.texto"></span></span></label>
+              <label class="opcao"><input type="radio" name="eixo" value="log">
+                <span><b data-t="espectro.eixo.log.rotulo"></b><span class="ajuda" data-t="espectro.eixo.log.texto"></span></span></label>
+            </fieldset>
+          </aside>
+        </div>
+        <p class="ajuda pequeno" data-t="espectro.clique"></p>
+      </section>
+
+      <section class="card">
+        <h2><span class="passo">4</span><span data-t="tabela.titulo"></span> <span id="titulo-instrumento" class="titulo-sec"></span></h2>
+        <div id="aviso-parciais" class="aviso" hidden></div>
+        <div class="tabela-rolagem">
+          <table class="tabela-parciais" id="tabela-parciais"></table>
+        </div>
+        <h3 data-t="tabela.perfil"></h3>
+        <p class="ajuda" data-t="tabela.perfilAjuda"></p>
+        <div id="grafico-perfil" class="grafico"></div>
+        <p class="aviso aviso-info" data-t="tabela.outrasAbas"></p>
+        <div class="linha-botoes">
+          <button type="button" class="btn" id="btn-baixar-um">⭳ <span data-t="tabela.baixar"></span></button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2><span class="passo">5</span><span data-t="descritores.titulo"></span></h2>
+        <p class="aviso aviso-info" data-t="descritores.extra"></p>
+        <p class="ajuda" data-t="descritores.ajuda"></p>
+        <div class="descritores" id="descritores"></div>
+      </section>
+    </section>
+
+    <!-- ================= ABA 2: COMPARAR ================= -->
+    <section id="aba-comparar" class="aba" role="tabpanel" hidden>
+      <section class="card">
+        <h2 data-t="comparar.titulo"></h2>
+        <p class="ajuda" data-t="comparar.ajuda"></p>
+        <div class="comparar-selects" id="comparar-selects"></div>
+        <div class="config-compacta" data-config-compacta></div>
+        <div id="grafico-comparar" class="grafico grafico-alto"></div>
+        <div class="tabela-rolagem"><table class="tabela-parciais" id="tabela-comparar"></table></div>
+      </section>
+    </section>
+
+    <!-- ================= ABA 3: TABELA GERAL ================= -->
+    <section id="aba-tabela" class="aba" role="tabpanel" hidden>
+      <section class="card">
+        <h2 data-t="geral.titulo"></h2>
+        <p class="ajuda" data-t="geral.ajuda"></p>
+        <div class="config-compacta" data-config-compacta></div>
+        <div class="linha-opcoes">
+          <label><span data-t="geral.mostrar"></span>
+            <select id="sel-mostrar"></select></label>
+        </div>
+        <div id="progresso" class="progresso" hidden><div class="progresso-barra"></div><span class="progresso-texto"></span></div>
+        <div class="legenda-calor" id="legenda-calor"></div>
+        <div class="tabela-rolagem"><table class="tabela-geral" id="tabela-geral"></table></div>
+        <h3 data-t="geral.exportar"></h3>
+        <p class="ajuda" data-t="geral.exportarAjuda"></p>
+        <div class="linha-botoes">
+          <button type="button" class="btn btn-primario" id="btn-csv-completo">⭳ <span data-t="geral.csvCompleto"></span></button>
+          <button type="button" class="btn" id="btn-csv-resumido">⭳ <span data-t="geral.csvResumido"></span></button>
+          <button type="button" class="btn" id="btn-csv-intl">⭳ <span data-t="geral.csvIntl"></span></button>
+          <button type="button" class="btn" id="btn-json">⭳ <span data-t="geral.json"></span></button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="rodape">
+    <button type="button" class="btn btn-discreto" id="btn-restaurar" data-t="rodape.restaurar"></button>
+    <span>Parciais do Timbre · análise feita inteiramente no seu navegador</span>
+  </footer>
+
+  <dialog id="dlg-ajuda" aria-labelledby="dlg-ajuda-titulo">
+    <div class="dlg-cabecalho">
+      <h2 id="dlg-ajuda-titulo" data-t="ajuda.titulo"></h2>
+      <button type="button" class="btn btn-icone" id="btn-fechar-ajuda" aria-label="Fechar">✕</button>
+    </div>
+    <div class="dlg-corpo" data-t="ajuda.html"></div>
+  </dialog>
+
+  <div id="aviso-flutuante" class="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>
