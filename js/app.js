@@ -3,6 +3,10 @@ import * as A from './analise.js';
 import { nota, notaTexto } from './notas.js';
 import { T } from './textos.js';
 import * as X from './exportar.js';
+import {
+  corDoTimbre, corDaParcial, lambdaDaPosicao, posicaoNaFaixa, posicaoNaSerie, textoSobre, NIVEL_FUNDAMENTAL_DB_NPS,
+  LAMBDA_MIN, LAMBDA_MAX, LAMBDA_INI_PADRAO, LAMBDA_FIM_PADRAO,
+} from './cor.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
@@ -30,11 +34,19 @@ const PADRAO = {
   eixoLog: false,
   comparar: ['la-flauta.wav', 'la-oboe.wav', 'la-clarinete-em-bb.wav', null],
   mostrar: 'amp',
+  yLinear: false,           // eixo vertical do espectro: dB (padrão) ou linear
+  escalaCor: 'lin',         // peso das parciais na cor: 'lin' ou 'db'
+  metodoCor: 'centroide',   // 'centroide' (centro de gravidade f/f0 → uma cor) ou 'mistura' (luzes em Hz absolutos)
+  lambdaIni: LAMBDA_INI_PADRAO, // nm do início da faixa (f0, ou 20 Hz na mistura)
+  lambdaFim: LAMBDA_FIM_PADRAO, // nm do fim da faixa (n×f0, ou 20 kHz na mistura)
+  mapaCor: 'oit',           // escala da faixa: 'lin' ou 'oit' (oitavas)
 };
 let estado = carregarEstado();
 function carregarEstado() {
   try {
     const s = JSON.parse(localStorage.getItem(CHAVE) || 'null');
+    if (s) delete s.passoCor; // da fórmula antiga (círculo cromático)
+    if (s && 'lambda20' in s) { delete s.lambda20; delete s.lambda20k; delete s.mapaCor; } // da 1ª versão do espectro visível
     // só o número de parciais é escolhido pelo usuário; referência (f0), modo (harmônico) e unidade (dB) são fixos
     if (s) return { ...structuredClone(PADRAO), ...s, config: { ...PADRAO.config, n: s.config?.n ?? PADRAO.config.n } };
   } catch (e) { /* sem armazenamento: segue com o padrão */ }
@@ -213,6 +225,20 @@ function sincronizarControles() {
   $('#n-valor').textContent = n;
   for (const el of $$('input[data-cfg="n"]')) el.value = n;
   for (const el of $$('input[name="eixo"]')) el.checked = el.value === (estado.eixoLog ? 'log' : 'linear');
+  for (const el of $$('input[name="eixoY"]')) el.checked = el.value === (estado.yLinear ? 'lin' : 'db');
+  for (const el of $$('input[name="escala-cor"]')) el.checked = el.value === estado.escalaCor;
+  for (const el of $$('input[name="mapa-cor"]')) el.checked = el.value === estado.mapaCor;
+  for (const el of $$('input[name="metodo-cor"]')) el.checked = el.value === estado.metodoCor;
+  const [pa, pb] = pontas();
+  $('#rot-lambda-ini').textContent = `${pa} →`;
+  $('#rot-lambda-fim').textContent = `${pb} →`;
+  for (const [id, chave] of [['#lambda-ini', 'lambdaIni'], ['#lambda-fim', 'lambdaFim']]) {
+    const el = $(id), nm = estado[chave], hex = corDaParcial(nm).hex;
+    Object.assign(el, { min: LAMBDA_MIN, max: LAMBDA_MAX, value: nm });
+    el.style.accentColor = hex;
+    $(`${id}-valor`).innerHTML = `<span class="cor-chip" style="background:${hex}"></span>${nm} nm`;
+  }
+  $('#btn-lambda-padrao').disabled = estado.lambdaIni === LAMBDA_INI_PADRAO && estado.lambdaFim === LAMBDA_FIM_PADRAO;
 }
 function montarConfigCompacta() {
   const html = `
@@ -252,6 +278,7 @@ async function renderUm() {
   renderEspectro(r);
   renderTabelaParciais(r);
   renderPerfil(r);
+  renderCor(r);
   renderDescritores(r);
 }
 
@@ -514,17 +541,21 @@ function renderEspectro(r) {
   const fUlt = encontradas.length ? encontradas[encontradas.length - 1].freq : (r.f0 || 1000) * estado.config.n;
   const fMax = Math.min(esp.sr / 2, Math.max(fUlt + (r.f0 || 200) * 1.5, r.picoForte.freq * 1.2));
   const d = dadosEspectro(esp, Math.min(esp.sr / 2, Math.max(fMax * 2, 8000)));
-  const yMin = Math.max(-110, Math.floor((esp.piso - 12) / 10) * 10);
   const log = estado.eixoLog;
+  // eixo vertical: dB (pico mais forte = 0 dB) ou amplitude linear (pico mais forte = 1)
+  const yLin = estado.yLinear;
+  const Y = (db) => (yLin ? Math.pow(10, db / 20) : db);
+  const yMin = yLin ? 0 : Math.max(-110, Math.floor((esp.piso - 12) / 10) * 10);
+  const yTopo = yLin ? 1.12 : 8;
 
   const tracos = [
     {
-      x: d.x, y: d.y, type: 'scatter', mode: 'lines', name: 'Espectro',
+      x: d.x, y: d.y.map(Y), type: 'scatter', mode: 'lines', name: 'Espectro',
       line: { color: c.texto2, width: 1.5 },
-      hovertemplate: '%{x:,.1f} Hz<br>%{y:,.1f} dB<extra></extra>',
+      hovertemplate: yLin ? '%{x:,.1f} Hz<br>amplitude %{y:,.4f}<extra></extra>' : '%{x:,.1f} Hz<br>%{y:,.1f} dB<extra></extra>',
     },
     {
-      x: encontradas.map((p) => p.freq), y: encontradas.map((p) => p.db),
+      x: encontradas.map((p) => p.freq), y: encontradas.map((p) => Y(p.db)),
       type: 'scatter', mode: 'markers+text', name: 'Parciais da tabela',
       text: encontradas.map((p) => rotuloParcial(p)), textposition: 'top center',
       textfont: { color: c.texto1, size: 11 },
@@ -534,14 +565,14 @@ function renderEspectro(r) {
       cliponaxis: false,
     },
     {
-      x: [r.picoForte.freq], y: [r.picoForte.db], type: 'scatter', mode: 'markers', name: 'Pico mais forte',
+      x: [r.picoForte.freq], y: [Y(r.picoForte.db)], type: 'scatter', mode: 'markers', name: 'Pico mais forte',
       marker: { color: c.serie[1], size: 15, symbol: 'diamond-open', line: { width: 2.5, color: c.serie[1] } },
       hovertemplate: '<b>Pico mais forte</b><br>%{x:,.1f} Hz · ' + notaTexto(r.picoForte.freq) + '<extra></extra>',
     },
   ];
   if (r.f0) {
     tracos.unshift({
-      x: [r.f0, r.f0], y: [yMin, 8], type: 'scatter', mode: 'lines', name: 'Fundamental (f0)',
+      x: [r.f0, r.f0], y: [yMin, yTopo], type: 'scatter', mode: 'lines', name: 'Fundamental (f0)',
       line: { color: c.serie[0], width: 1.5, dash: 'dash' }, hoverinfo: 'skip',
     });
   }
@@ -562,7 +593,14 @@ function renderEspectro(r) {
       type: log ? 'log' : 'linear',
       range: log ? [Math.log10(fMin), Math.log10(fMax)] : [0, fMax],
     },
-    yaxis: { ...layoutBase().yaxis, title: { text: estreito ? 'Nível (dB)' : 'Nível (dB, pico mais forte = 0)', font: { color: c.texto2 } }, range: [yMin, 8] },
+    yaxis: {
+      ...layoutBase().yaxis,
+      title: {
+        text: yLin ? (estreito ? 'Amplitude' : 'Amplitude (pico mais forte = 1)') : (estreito ? 'Nível (dB)' : 'Nível (dB, pico mais forte = 0)'),
+        font: { color: c.texto2 },
+      },
+      range: [yMin, yTopo],
+    },
     legend: { orientation: 'h', x: 0, y: estreito ? -0.14 : -0.16, yanchor: 'top', font: { color: c.texto2 } },
   });
   const div = $('#grafico-espectro');
@@ -596,6 +634,13 @@ for (const el of $$('input[name="eixo"]')) {
   el.addEventListener('change', () => {
     if (!el.checked) return;
     estado.eixoLog = el.value === 'log'; salvar();
+    if (ultimo) renderEspectro(ultimo);
+  });
+}
+for (const el of $$('input[name="eixoY"]')) {
+  el.addEventListener('change', () => {
+    if (!el.checked) return;
+    estado.yLinear = el.value === 'lin'; salvar();
     if (ultimo) renderEspectro(ultimo);
   });
 }
@@ -666,6 +711,221 @@ function renderPerfil(r) {
     hovertemplate: '<b>%{x}</b><br>%{customdata}<extra></extra>',
   }], lay, configPlotly(`perfil-${r.arquivo.replace('.wav', '')}`));
 }
+
+// ---------- cor do timbre ----------
+/** Mapeamento atual: método, escala e as cores das pontas da faixa. */
+function mapaAtual() {
+  return { metodo: estado.metodoCor, escala: estado.mapaCor, lambdaIni: estado.lambdaIni, lambdaFim: estado.lambdaFim };
+}
+const ehMistura = () => estado.metodoCor === 'mistura';
+
+/** Cor do timbre a partir das parciais da tabela (as n escolhidas no passo 3). */
+function corDoResultado(r) {
+  if (!r || !r.f0) return null;
+  return corDoTimbre(r.parciais, estado.config.n, estado.escalaCor, mapaAtual());
+}
+const fmtRgb = (rgb) => rgb.join(', ');
+const ROTULO_PESO = { lin: 'pesos lineares (fundamental = 1)', db: `pesos em dB NPS (fundamental = ${NIVEL_FUNDAMENTAL_DB_NPS} dB)` };
+const ROTULO_ESCALA = { lin: 'linear', oit: 'em oitavas' };
+/** Rótulos das pontas da faixa: f0 e n×f0 (centroide) ou 20 Hz e 20 kHz (mistura). */
+const pontas = () => (ehMistura() ? ['20 Hz', '20 kHz'] : ['f0', `${estado.config.n}×f0`]);
+const descricaoMapa = () => {
+  const [a, b] = pontas();
+  return `${ehMistura() ? 'mistura das luzes das parciais' : 'centro de gravidade das parciais (f ÷ f0)'}; ${a} → ${estado.lambdaIni} nm, ${b} → ${estado.lambdaFim} nm, ${ROTULO_ESCALA[estado.mapaCor]}`;
+};
+
+const fmtHz = (f) => (f >= 1000 ? `${fmt(f / 1000, f % 1000 ? 1 : 0)} kHz` : `${fmt(f, 0)} Hz`);
+function eixoFaixa() {
+  const m = mapaAtual(), n = estado.config.n;
+  if (m.metodo === 'mistura') {
+    return {
+      pos: (f) => posicaoNaFaixa(f, m.escala), rotulo: fmtHz,
+      marcas: m.escala === 'oit' ? [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000] : [20, 2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000, 18000, 20000],
+    };
+  }
+  return {
+    pos: (x) => posicaoNaSerie(x, n, m.escala),
+    rotulo: (x) => (x === 1 ? 'f0' : `${x}×f0`),
+    marcas: Array.from({ length: n }, (_, i) => i + 1),
+  };
+}
+
+/** Faixa pintada com o mapeamento, uma marca por parcial (altura = peso) e, no centroide, o ponteiro. */
+const faixa = $('#faixa-cor');
+function desenharFaixa(c) {
+  const dpr = window.devicePixelRatio || 1;
+  const w = faixa.clientWidth, h = faixa.clientHeight;
+  if (!w) return;
+  if (faixa.width !== Math.round(w * dpr) || faixa.height !== Math.round(h * dpr)) {
+    faixa.width = Math.round(w * dpr); faixa.height = Math.round(h * dpr);
+  }
+  const g = faixa.getContext('2d');
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.clearRect(0, 0, w, h);
+  const cs = cores(), mapa = mapaAtual(), eixo = eixoFaixa();
+  const mx = 14, larg = w - 2 * mx;
+  const yBanda = 62, altBanda = 24, yEixo = yBanda + altBanda;
+  // banda colorida
+  for (let px = 0; px < larg; px++) {
+    g.fillStyle = corDaParcial(lambdaDaPosicao(px / larg, mapa)).hex;
+    g.fillRect(mx + px, yBanda, 1.5, altBanda);
+  }
+  // eixo
+  g.fillStyle = cs.mudo; g.font = '11px system-ui, sans-serif'; g.textAlign = 'center';
+  let ultimoX = -Infinity;
+  eixo.marcas.forEach((v, i) => {
+    const x = mx + eixo.pos(v) * larg;
+    g.fillRect(x - 0.5, yEixo, 1, 4);
+    if (x - ultimoX < 40) return;
+    g.fillText(eixo.rotulo(v), Math.min(w - 22, Math.max(22, x)), yEixo + 16);
+    ultimoX = x;
+  });
+  if (!c) return;
+  // parciais
+  const itens = c.itens.filter((it) => it && it.peso > 0);
+  const maxParte = Math.max(...itens.map((it) => it.parte));
+  const altMax = ehMistura() ? 42 : 30;
+  let ultimoRot = -Infinity;
+  g.textAlign = 'center'; g.font = '600 11px system-ui, sans-serif';
+  for (const it of itens) {
+    const x = mx + it.posicao * larg, hh = Math.max(4, altMax * (it.parte / maxParte));
+    g.fillStyle = cs.texto1;
+    g.fillRect(x - 2.5, yBanda - hh - 1, 5, hh + 1 + altBanda);
+    g.fillStyle = it.hex;
+    g.fillRect(x - 1.5, yBanda - hh, 3, hh + altBanda - 1);
+    if (x - ultimoRot >= 16) {
+      g.fillStyle = cs.texto1;
+      g.fillText(`${it.k}`, x, yBanda - hh - 5);
+      ultimoRot = x;
+    }
+  }
+  // centro de gravidade: um triângulo com a cor do timbre, abaixo da banda
+  if (c.centroide) {
+    const x = mx + c.centroide.posicao * larg;
+    g.beginPath();
+    g.moveTo(x, yBanda + altBanda - 2); g.lineTo(x - 9, yBanda + altBanda + 13); g.lineTo(x + 9, yBanda + altBanda + 13); g.closePath();
+    g.fillStyle = c.hex; g.fill();
+    g.lineWidth = 2; g.strokeStyle = cs.texto1; g.stroke();
+  }
+}
+
+function renderCor(r) {
+  const c = corDoResultado(r);
+  $('#titulo-cor').textContent = `— ${r.nome}`;
+  desenharFaixa(c);
+  const amostra = $('#cor-amostra');
+  for (const b of ['#btn-copiar-hex', '#btn-copiar-rgb', '#btn-baixar-cor']) $(b).disabled = !c;
+  if (!c) {
+    amostra.style.background = 'var(--superficie-2)'; amostra.style.color = 'var(--texto-2)';
+    $('#cor-amostra-hex').textContent = '—';
+    $('#cor-valores').innerHTML = `<p class="ajuda">${T.cor.semCor}</p>`;
+    $('#tabela-cor').innerHTML = '';
+    return;
+  }
+  const R = T.cor.rotulos;
+  amostra.style.background = c.hex;
+  amostra.style.color = textoSobre(c.rgb);
+  amostra.setAttribute('aria-label', `Cor do timbre: ${c.hex}`);
+  $('#cor-amostra-hex').textContent = c.hex;
+  let terceiro;
+  if (c.centroide) {
+    terceiro = `<div><dt>${R.centro}</dt><dd>${fmt(c.indice, 2)} × f0 <small>· ${fmt(c.centroide.lambda, 0)} nm</small></dd></div>`;
+  } else {
+    const usadas = c.itens.filter((it) => it && it.peso > 0);
+    const nmMin = Math.min(...usadas.map((it) => it.lambda)), nmMax = Math.max(...usadas.map((it) => it.lambda));
+    terceiro = `<div><dt>${R.faixa}</dt><dd>${fmt(nmMax, 0)}${usadas.length > 1 ? `–${fmt(nmMin, 0)}` : ''} nm <small>· ${usadas.length} ${usadas.length === 1 ? 'parcial' : 'parciais'}</small></dd></div>`;
+  }
+  $('#cor-valores').innerHTML = `
+    <div><dt>${R.hex}</dt><dd>${c.hex}</dd></div>
+    <div><dt>${R.rgb}</dt><dd>${fmtRgb(c.rgb)}</dd></div>${terceiro}`;
+
+  let html = `<thead><tr>
+    <th>Parcial</th><th>Frequência<small>em Hz</small></th><th>Razão<small>f ÷ f0</small></th>
+    <th>Luz<small>comprimento de onda</small></th>
+    <th>Peso<small>${c.escala === 'db' ? `dB NPS · fundamental = ${NIVEL_FUNDAMENTAL_DB_NPS} dB` : 'amplitude linear · fundamental = 1'}</small></th>
+    <th>Parte<small>% do total</small></th></tr></thead><tbody>`;
+  for (let i = 0; i < c.n; i++) {
+    const it = c.itens[i];
+    if (!it) { html += `<tr class="nao-encontrada"><td>${i + 1}ª</td><td>—</td><td>—</td><td>—</td><td>acima do limite da gravação</td><td>0%</td></tr>`; continue; }
+    const luz = `<span class="cor-chip" style="background:${it.hex}"></span>${fmt(it.lambda, 0)} nm`;
+    if (!it.encontrada) {
+      html += `<tr class="nao-encontrada"><td>${it.k}ª</td><td>≈ ${fmt(it.freq, 1)}</td><td>${fmt(it.razao, 3)}</td><td>${luz}</td><td>${T.tabela.naoEncontrada}</td><td>0%</td></tr>`;
+      continue;
+    }
+    html += `<tr><td>${it.k}ª</td><td>${fmt(it.freq, 1)}</td><td>${fmt(it.razao, 3)}</td><td>${luz}</td><td>${fmt(it.peso, c.escala === 'db' ? 1 : 4)}</td><td>${fmt(100 * it.parte, 1)}%</td></tr>`;
+  }
+  if (c.centroide) {
+    html += `<tr class="centro"><td>${R.centroCurto}</td><td></td><td>${fmt(c.indice, 3)}</td><td><span class="cor-chip" style="background:${c.hex}"></span>${fmt(c.centroide.lambda, 0)} nm</td><td></td><td>100%</td></tr>`;
+  }
+  $('#tabela-cor').innerHTML = html + '</tbody>';
+}
+
+function aoMudarCor(salvarAgora = true) {
+  if (salvarAgora) salvar();
+  sincronizarControles();
+  if (ultimo) renderCor(ultimo);
+}
+for (const [nome, chave] of [['escala-cor', 'escalaCor'], ['mapa-cor', 'mapaCor'], ['metodo-cor', 'metodoCor']]) {
+  for (const el of $$(`input[name="${nome}"]`)) {
+    el.addEventListener('change', () => { if (el.checked) { estado[chave] = el.value; aoMudarCor(); } });
+  }
+}
+for (const [id, chave] of [['#lambda-ini', 'lambdaIni'], ['#lambda-fim', 'lambdaFim']]) {
+  const el = $(id);
+  const ler = () => { estado[chave] = Math.max(LAMBDA_MIN, Math.min(LAMBDA_MAX, Math.round(+el.value))); };
+  el.addEventListener('input', () => { ler(); aoMudarCor(false); });
+  el.addEventListener('change', () => { ler(); aoMudarCor(true); });
+}
+$('#btn-lambda-padrao').addEventListener('click', () => {
+  estado.lambdaIni = LAMBDA_INI_PADRAO; estado.lambdaFim = LAMBDA_FIM_PADRAO;
+  aoMudarCor();
+});
+window.addEventListener('resize', () => { if (estado.aba === 'um' && ultimo) desenharFaixa(corDoResultado(ultimo)); });
+
+function copiar(textoCopiar) {
+  const ok = () => avisar(`Copiado: ${textoCopiar}`);
+  const falha = () => avisar(`Não foi possível copiar. O valor é ${textoCopiar}`);
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(textoCopiar).then(ok, falha);
+  else falha();
+}
+$('#btn-copiar-hex').addEventListener('click', () => { const c = corDoResultado(ultimo); if (c) copiar(c.hex); });
+$('#btn-copiar-rgb').addEventListener('click', () => { const c = corDoResultado(ultimo); if (c) copiar(fmtRgb(c.rgb)); });
+$('#btn-baixar-cor').addEventListener('click', () => {
+  const c = corDoResultado(ultimo);
+  if (!c) return;
+  const mapa = mapaAtual();
+  const bx = 40, bl = 400, by = 300, bh = 20;
+  let stops = '';
+  for (let i = 0; i <= 60; i++) {
+    const t = i / 60;
+    stops += `<stop offset="${(100 * t).toFixed(2)}%" stop-color="${corDaParcial(lambdaDaPosicao(t, mapa)).hex}"/>`;
+  }
+  const itens = c.itens.filter((it) => it && it.peso > 0);
+  const maxParte = Math.max(...itens.map((it) => it.parte));
+  const marcas = itens.map((it) => {
+    const x = bx + it.posicao * bl, hh = Math.max(4, 40 * (it.parte / maxParte));
+    return `<rect x="${(x - 2).toFixed(1)}" y="${(by - hh).toFixed(1)}" width="4" height="${(hh + bh).toFixed(1)}" fill="${it.hex}" stroke="#000000" stroke-width="0.8"/>`;
+  }).join('');
+  const ponteiro = c.centroide
+    ? (() => { const x = bx + c.centroide.posicao * bl; return `<polygon points="${x},${by + bh - 2} ${x - 8},${by + bh + 12} ${x + 8},${by + bh + 12}" fill="${c.hex}" stroke="#000000" stroke-width="1.5"/>`; })()
+    : '';
+  const [pa, pb] = pontas();
+  const rotEixo = [pa, pb].map((txt, i) => `<text x="${i ? bx + bl : bx}" y="${by + bh + 26}" text-anchor="${i ? 'end' : 'start'}" font-family="sans-serif" font-size="11" fill="#555555">${esc(txt)}</text>`).join('');
+  const linhaValor = c.centroide ? ` · centro de gravidade ${fmt(c.indice, 2)} × f0 (${fmt(c.centroide.lambda, 0)} nm)` : '';
+  const svg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="410" viewBox="0 0 480 410">
+  <defs><linearGradient id="faixa" x1="0" x2="1" y1="0" y2="0">${stops}</linearGradient></defs>
+  <rect width="480" height="410" fill="#ffffff"/>
+  <text x="240" y="36" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="#000000">${esc(ultimo.nome)}</text>
+  <text x="240" y="62" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#000000">Cor RGB: [${fmtRgb(c.rgb)}] · ${c.hex}</text>
+  <rect x="90" y="78" width="300" height="150" fill="${c.hex}"/>
+  <rect x="${bx}" y="${by}" width="${bl}" height="${bh}" fill="url(#faixa)"/>
+  ${marcas}${ponteiro}${rotEixo}
+  <text x="240" y="370" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555555">${c.n} parciais · f0 = ${fmt(ultimo.f0, 1)} Hz · ${esc(ROTULO_PESO[c.escala])}${linhaValor}</text>
+  <text x="240" y="390" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#555555">${esc(descricaoMapa())}</text>
+</svg>`;
+  X.baixar(`cor-do-timbre-${ultimo.arquivo.replace('.wav', '')}.svg`, svg, 'image/svg+xml');
+});
 
 // ---------- descritores ----------
 function renderDescritores(r) {
@@ -797,15 +1057,19 @@ function desenharTabelaGeral() {
   const c = cores();
   $('#legenda-calor').innerHTML = `<span>Cor da célula = força da parcial: mais fraca</span><span class="rampa">${c.calor.map((x) => `<span style="background:${x}"></span>`).join('')}</span><span>mais forte</span>`;
   const rot = (k) => (estado.config.modo === 'picos' ? `pico ${k}` : `${k}ª`);
-  let html = `<thead><tr><th class="inst">Instrumento</th><th>Fundamental</th>${Array.from({ length: n }, (_, k) => `<th>${rot(k + 1)}</th>`).join('')}</tr></thead><tbody>`;
+  let html = `<thead><tr><th class="inst">Instrumento</th><th>Fundamental</th><th title="${esc(`Cor do timbre (${n} parciais, ${ROTULO_PESO[estado.escalaCor]}; ${descricaoMapa()})`)}">Cor<br><span class="pequeno">${ehMistura() ? 'mistura' : 'centroide'} · ${estado.lambdaIni}→${estado.lambdaFim} nm</span></th>${Array.from({ length: n }, (_, k) => `<th>${rot(k + 1)}</th>`).join('')}</tr></thead><tbody>`;
   let familia = null;
   for (const r of res) {
     if (r.familia !== familia) {
       familia = r.familia;
-      html += `<tr class="familia"><th colspan="${n + 2}">${esc(familia)}</th></tr>`;
+      html += `<tr class="familia"><th colspan="${n + 3}">${esc(familia)}</th></tr>`;
     }
+    const cr = corDoResultado(r);
+    const celCor = cr
+      ? `<td class="cor-cel" title="${esc(`${r.nome}\nRGB ${fmtRgb(cr.rgb)} · ${cr.hex}`)}"><span class="cor-chip" style="background:${cr.hex}"></span>${cr.hex}</td>`
+      : '<td class="cor-cel vazio">—</td>';
     html += `<tr><th class="inst"><button type="button" data-abrir="${esc(r.arquivo)}">${esc(r.nome)}</button></th>
-      <td class="f0">${notaTexto(r.f0)}<br>${fmt(r.f0, 1)} Hz</td>`;
+      <td class="f0">${notaTexto(r.f0)}<br>${fmt(r.f0, 1)} Hz</td>${celCor}`;
     for (let k = 0; k < n; k++) {
       const p = r.parciais[k];
       if (!p || !p.encontrada) { html += `<td class="cel vazio" title="${esc(T.tabela.naoEncontradaDica)}">—</td>`; continue; }
@@ -838,6 +1102,12 @@ $('#btn-csv-resumido').addEventListener('click', () => {
   X.baixar('parciais-tabela-resumida.csv', X.csvResumido(resultadosGeral, estado.config, m.valor, rotuloMostrar(), true));
 });
 $('#btn-json').addEventListener('click', () => resultadosGeral.length && X.baixar('parciais-todos-instrumentos.json', X.json(resultadosGeral, estado.config), 'application/json'));
+$('#btn-csv-cores').addEventListener('click', () => {
+  if (!resultadosGeral.length) return;
+  const lista = resultadosGeral.map((r) => ({ r, cor: corDoResultado(r) }));
+  X.baixar(`cores-dos-timbres-${estado.metodoCor}-${estado.mapaCor === 'oit' ? 'oitavas' : 'linear'}-${estado.lambdaIni}-${estado.lambdaFim}nm-pesos-${estado.escalaCor === 'db' ? 'db' : 'linear'}.csv`,
+    X.csvCores(lista, estado.config.n, estado.escalaCor, mapaAtual(), true));
+});
 
 // ---------------------------------------------------------------------------
 // Seletor de instrumento
@@ -898,6 +1168,22 @@ async function iniciar() {
     if (!plotlyPronto()) erroGlobal('<b>A biblioteca de gráficos não carregou.</b> Verifique a conexão com a internet e recarregue a página.');
   }
   mostrarAba(estado.aba || 'um');
+}
+
+// balões ⓘ: abrem junto do botão que os chamou (a API Popover cuida de abrir e fechar)
+for (const pop of $$('.balao[popover]')) {
+  pop.addEventListener('toggle', (ev) => {
+    if (ev.newState !== 'open') return;
+    const btn = $(`[popovertarget="${pop.id}"]`);
+    if (!btn) return;
+    const r = btn.getBoundingClientRect();
+    const w = pop.offsetWidth, h = pop.offsetHeight, vw = document.documentElement.clientWidth;
+    const left = Math.max(16, Math.min(r.left + r.width / 2 - 28, vw - w - 16));
+    let top = r.bottom + 8;
+    if (top + h > window.innerHeight - 8 && r.top - h - 8 > 8) top = r.top - h - 8;
+    pop.style.left = `${left + window.scrollX}px`;
+    pop.style.top = `${top + window.scrollY}px`;
+  });
 }
 
 // ajuda, tema, restaurar

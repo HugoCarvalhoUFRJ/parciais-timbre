@@ -10,6 +10,19 @@
   <script>
     // aplica o tema salvo antes de desenhar a página (evita "piscar")
     try { const t = localStorage.getItem('parciais-timbre-tema'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+    // Aberto com duplo clique (file://), o navegador bloqueia os módulos JavaScript e a página
+    // ficaria em branco. Este aviso fica aqui (e não em textos.js) porque textos.js não carrega nesse caso.
+    if (location.protocol === 'file:') {
+      document.addEventListener('DOMContentLoaded', () => {
+        const el = document.getElementById('erro-global');
+        el.innerHTML = '<b>O app não funciona aberto direto do arquivo (duplo clique no index.html).</b> '
+          + 'Por segurança, o navegador bloqueia a leitura dos programas e dos áudios nesse caso. '
+          + 'Use o endereço publicado (GitHub Pages) ou, no computador, um servidor local: abra um terminal na pasta '
+          + '<code>parciais-timbre</code>, rode <code>python -m http.server 8765</code> e acesse '
+          + '<a href="http://localhost:8765">http://localhost:8765</a>.';
+        el.hidden = false;
+      });
+    }
   </script>
   <script src="https://cdn.jsdelivr.net/npm/plotly.js-basic-dist-min@2.35.2/plotly-basic.min.js" defer></script>
   <script type="module" src="js/app.js"></script>
@@ -47,9 +60,9 @@
       </section>
 
       <section class="card">
-        <h2><span class="passo">1</span><span data-t="trecho.titulo"></span></h2>
-        <p class="ajuda" data-t="trecho.ajuda"></p>
-        <p class="ajuda" data-t="trecho.arrastar"></p>
+        <h2><span class="passo">1</span><span data-t="trecho.titulo"></span><button type="button" class="info" popovertarget="info-trecho" aria-label="Mais informações sobre o trecho">i</button></h2>
+        <div popover id="info-trecho" class="balao" data-t="trecho.info"></div>
+        <p class="ajuda" data-t="trecho.curto"></p>
         <div class="onda-wrap">
           <canvas id="onda" height="150" aria-label="Forma de onda com o trecho analisado destacado"></canvas>
         </div>
@@ -59,18 +72,18 @@
           <span id="trecho-info" class="etiqueta"></span>
           <button type="button" class="btn" id="btn-trecho-auto" data-t="trecho.automatico"></button>
         </div>
-        <p class="ajuda pequeno" data-t="trecho.minimo"></p>
         <div class="linha-botoes">
           <button type="button" class="btn btn-primario" id="btn-tocar-trecho" data-rotulo="ouvir.trecho"></button>
           <button type="button" class="btn" id="btn-tocar-tudo" data-rotulo="ouvir.inteira"></button>
+          <button type="button" class="info" popovertarget="info-ouvir" aria-label="Mais informações sobre o volume">i</button>
         </div>
-        <p class="ajuda pequeno" data-t="ouvir.ajuda"></p>
+        <div popover id="info-ouvir" class="balao" data-t="ouvir.ajuda"></div>
       </section>
 
       <section class="card">
-        <h2><span class="passo">2</span><span data-t="fundamental.titulo"></span></h2>
-        <p class="ajuda" data-t="fundamental.ajuda"></p>
-        <p class="ajuda" data-t="fundamental.porqueErra"></p>
+        <h2><span class="passo">2</span><span data-t="fundamental.titulo"></span><button type="button" class="info" popovertarget="info-f0" aria-label="Mais informações sobre a fundamental">i</button></h2>
+        <div popover id="info-f0" class="balao" data-t="fundamental.info"></div>
+        <p class="ajuda" data-t="fundamental.curto"></p>
         <div class="f0-painel">
           <div class="f0-leitura" id="f0-leitura" aria-live="polite"></div>
           <div class="linha-botoes">
@@ -82,29 +95,31 @@
       </section>
 
       <section class="card">
-        <h2><span class="passo">3</span><span data-t="espectro.titulo"></span></h2>
-        <p class="ajuda" data-t="espectro.ajuda"></p>
-        <p class="ajuda" data-t="espectro.marcas"></p>
-        <div class="espectro-layout">
-          <div id="grafico-espectro" class="grafico grafico-alto"></div>
-          <aside class="espectro-lateral">
-            <fieldset class="opcoes">
-              <legend data-t="nParciais.titulo"></legend>
-              <div class="n-controle">
-                <input type="range" id="n-parciais" min="1" max="20" step="1" aria-label="Número de parciais">
-                <output id="n-valor" for="n-parciais"></output>
-              </div>
-              <p class="ajuda" data-t="nParciais.texto"></p>
-              <p class="ajuda pequeno" data-t="nParciais.obs"></p>
-            </fieldset>
-            <fieldset class="opcoes">
-              <legend data-t="espectro.eixo.titulo"></legend>
-              <label class="opcao"><input type="radio" name="eixo" value="linear">
-                <span><b data-t="espectro.eixo.linear.rotulo"></b><span class="ajuda" data-t="espectro.eixo.linear.texto"></span></span></label>
-              <label class="opcao"><input type="radio" name="eixo" value="log">
-                <span><b data-t="espectro.eixo.log.rotulo"></b><span class="ajuda" data-t="espectro.eixo.log.texto"></span></span></label>
-            </fieldset>
-          </aside>
+        <h2><span class="passo">3</span><span data-t="espectro.titulo"></span><button type="button" class="info" popovertarget="info-espectro" aria-label="Como ler o espectro">i</button></h2>
+        <div popover id="info-espectro" class="balao" data-t="espectro.info"></div>
+        <div id="grafico-espectro" class="grafico grafico-alto"></div>
+        <div class="controles">
+          <div class="grupo">
+            <span class="grupo-rotulo" id="rot-n" data-t="nParciais.titulo"></span>
+            <input type="range" id="n-parciais" min="1" max="20" step="1" aria-labelledby="rot-n">
+            <output id="n-valor" for="n-parciais"></output>
+            <button type="button" class="info" popovertarget="info-n" aria-label="Mais informações sobre o número de parciais">i</button>
+            <div popover id="info-n" class="balao" data-t="nParciais.info"></div>
+          </div>
+          <div class="grupo" role="radiogroup" aria-labelledby="rot-eixoY">
+            <span class="grupo-rotulo" id="rot-eixoY" data-t="espectro.eixoY.titulo"></span>
+            <label class="radio"><input type="radio" name="eixoY" value="db"><span data-t="espectro.eixoY.db.rotulo"></span></label>
+            <label class="radio"><input type="radio" name="eixoY" value="lin"><span data-t="espectro.eixoY.lin.rotulo"></span></label>
+            <button type="button" class="info" popovertarget="info-eixoY" aria-label="Mais informações sobre o eixo vertical">i</button>
+            <div popover id="info-eixoY" class="balao" data-t="espectro.eixoY.info"></div>
+          </div>
+          <div class="grupo" role="radiogroup" aria-labelledby="rot-eixo">
+            <span class="grupo-rotulo" id="rot-eixo" data-t="espectro.eixo.titulo"></span>
+            <label class="radio"><input type="radio" name="eixo" value="linear"><span data-t="espectro.eixo.linear.rotulo"></span></label>
+            <label class="radio"><input type="radio" name="eixo" value="log"><span data-t="espectro.eixo.log.rotulo"></span></label>
+            <button type="button" class="info" popovertarget="info-eixo" aria-label="Mais informações sobre o eixo de frequência">i</button>
+            <div popover id="info-eixo" class="balao" data-t="espectro.eixo.info"></div>
+          </div>
         </div>
         <p class="ajuda pequeno" data-t="espectro.clique"></p>
       </section>
@@ -115,17 +130,78 @@
         <div class="tabela-rolagem">
           <table class="tabela-parciais" id="tabela-parciais"></table>
         </div>
-        <h3 data-t="tabela.perfil"></h3>
-        <p class="ajuda" data-t="tabela.perfilAjuda"></p>
+        <h3><span data-t="tabela.perfil"></span><button type="button" class="info" popovertarget="info-perfil" aria-label="Mais informações sobre o perfil">i</button></h3>
+        <div popover id="info-perfil" class="balao" data-t="tabela.perfilAjuda"></div>
         <div id="grafico-perfil" class="grafico"></div>
-        <p class="aviso aviso-info" data-t="tabela.outrasAbas"></p>
+        <p class="ajuda pequeno" data-t="tabela.outrasAbas"></p>
         <div class="linha-botoes">
           <button type="button" class="btn" id="btn-baixar-um">⭳ <span data-t="tabela.baixar"></span></button>
         </div>
       </section>
 
+      <section class="card" id="card-cor">
+        <h2><span class="passo">5</span><span data-t="cor.titulo"></span> <span id="titulo-cor" class="titulo-sec"></span><button type="button" class="info" popovertarget="info-cor" aria-label="Como a cor é calculada">i</button></h2>
+        <div popover id="info-cor" class="balao" data-t="cor.info"></div>
+        <p class="ajuda" data-t="cor.ajuda"></p>
+        <div class="cor-topo">
+          <div class="cor-amostra" id="cor-amostra" role="img" aria-label="Cor do timbre"><span id="cor-amostra-hex"></span></div>
+          <div class="cor-resultado">
+            <dl class="cor-valores" id="cor-valores"></dl>
+            <div class="linha-botoes">
+              <button type="button" class="btn" id="btn-copiar-hex" data-t="cor.copiarHex"></button>
+              <button type="button" class="btn" id="btn-copiar-rgb" data-t="cor.copiarRgb"></button>
+              <button type="button" class="btn" id="btn-baixar-cor">⭳ <span data-t="cor.baixarSvg"></span></button>
+            </div>
+          </div>
+        </div>
+        <div class="faixa-wrap">
+          <canvas id="faixa-cor" aria-label="Faixa mapeada em cores, com a posição de cada parcial"></canvas>
+        </div>
+        <div class="controles">
+          <div class="grupo linha-inteira" role="radiogroup" aria-labelledby="rot-metodo">
+            <span class="grupo-rotulo" id="rot-metodo" data-t="cor.metodo.titulo"></span>
+            <label class="radio"><input type="radio" name="metodo-cor" value="centroide"><span data-t="cor.metodo.centroide"></span></label>
+            <label class="radio"><input type="radio" name="metodo-cor" value="mistura"><span data-t="cor.metodo.mistura"></span></label>
+            <button type="button" class="info" popovertarget="info-metodo" aria-label="Mais informações sobre o método">i</button>
+            <div popover id="info-metodo" class="balao" data-t="cor.metodo.info"></div>
+          </div>
+          <div class="grupo">
+            <label class="grupo-rotulo" id="rot-lambda-ini" for="lambda-ini"></label>
+            <input type="range" id="lambda-ini" step="1">
+            <output id="lambda-ini-valor" for="lambda-ini" class="nm"></output>
+          </div>
+          <div class="grupo">
+            <label class="grupo-rotulo" id="rot-lambda-fim" for="lambda-fim"></label>
+            <input type="range" id="lambda-fim" step="1">
+            <output id="lambda-fim-valor" for="lambda-fim" class="nm"></output>
+            <button type="button" class="btn btn-pequeno" id="btn-lambda-padrao" data-t="cor.mapa.padrao"></button>
+            <button type="button" class="info" popovertarget="info-lambda" aria-label="Mais informações sobre os extremos">i</button>
+            <div popover id="info-lambda" class="balao" data-t="cor.mapa.info"></div>
+          </div>
+          <div class="grupo" role="radiogroup" aria-labelledby="rot-mapa">
+            <span class="grupo-rotulo" id="rot-mapa" data-t="cor.escalaFreq.titulo"></span>
+            <label class="radio"><input type="radio" name="mapa-cor" value="lin"><span data-t="cor.escalaFreq.lin"></span></label>
+            <label class="radio"><input type="radio" name="mapa-cor" value="oit"><span data-t="cor.escalaFreq.oit"></span></label>
+            <button type="button" class="info" popovertarget="info-mapa" aria-label="Mais informações sobre a escala de frequência">i</button>
+            <div popover id="info-mapa" class="balao" data-t="cor.escalaFreq.info"></div>
+          </div>
+          <div class="grupo" role="radiogroup" aria-labelledby="rot-escala">
+            <span class="grupo-rotulo" id="rot-escala" data-t="cor.escala.titulo"></span>
+            <label class="radio"><input type="radio" name="escala-cor" value="lin"><span data-t="cor.escala.lin"></span></label>
+            <label class="radio"><input type="radio" name="escala-cor" value="db"><span data-t="cor.escala.db"></span></label>
+            <button type="button" class="info" popovertarget="info-escala" aria-label="Mais informações sobre os pesos">i</button>
+            <div popover id="info-escala" class="balao" data-t="cor.escala.info"></div>
+          </div>
+        </div>
+        <h3><span data-t="cor.usadas"></span><button type="button" class="info" popovertarget="info-usadas" aria-label="Mais informações sobre a tabela">i</button></h3>
+        <div popover id="info-usadas" class="balao" data-t="cor.usadasAjuda"></div>
+        <div class="tabela-rolagem">
+          <table class="tabela-parciais tabela-cor" id="tabela-cor"></table>
+        </div>
+      </section>
+
       <section class="card">
-        <h2><span class="passo">5</span><span data-t="descritores.titulo"></span></h2>
+        <h2><span class="passo">6</span><span data-t="descritores.titulo"></span></h2>
         <p class="aviso aviso-info" data-t="descritores.extra"></p>
         <p class="ajuda" data-t="descritores.ajuda"></p>
         <div class="descritores" id="descritores"></div>
@@ -164,6 +240,7 @@
           <button type="button" class="btn" id="btn-csv-resumido">⭳ <span data-t="geral.csvResumido"></span></button>
           <button type="button" class="btn" id="btn-csv-intl">⭳ <span data-t="geral.csvIntl"></span></button>
           <button type="button" class="btn" id="btn-json">⭳ <span data-t="geral.json"></span></button>
+          <button type="button" class="btn" id="btn-csv-cores">⭳ <span data-t="geral.csvCores"></span></button>
         </div>
       </section>
     </section>

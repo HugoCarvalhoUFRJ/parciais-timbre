@@ -2,6 +2,7 @@
 
 import { PARAMS } from './analise.js';
 import { nota } from './notas.js';
+import { NIVEL_FUNDAMENTAL_DB_NPS } from './cor.js';
 
 const ROTULO_REF = { f0: 'fundamental (f0) = 0 dB', pico: 'pico mais forte = 0 dB' };
 const ROTULO_MODO = { harmonico: 'harmônicas', picos: 'picos livres' };
@@ -64,6 +65,41 @@ export function csvResumido(resultados, config, valor, rotuloValor, br = true) {
       const v = p ? valor(p) : null;
       lin.push(fmtNum(v, 4, br));
     }
+    linhas.push(lin.map((c) => celula(c, sep)).join(sep));
+  }
+  return linhas.join('\r\n');
+}
+
+/** CSV das cores: uma linha por instrumento, com as amplitudes usadas e o resultado. */
+export function csvCores(lista, n, escala, mapa, br = true) {
+  const sep = br ? ';' : ',';
+  const linhas = [
+    `# Parciais do Timbre — cores dos timbres, exportado em ${new Date().toLocaleString('pt-BR')}`,
+    ...(mapa.metodo === 'mistura' ? [
+      `# Método: mistura das luzes. Cada parcial vira uma luz: 20 Hz → ${mapa.lambdaIni} nm, 20 kHz → ${mapa.lambdaFim} nm, ${mapa.escala === 'oit' ? 'linear em oitavas (log2 da frequência)' : 'linear em Hz'}; interpolação na frequência da luz (c / λ)`,
+      `# Cor do timbre = soma de a_k · RGB_k (RGB linear), com ${n} parciais, levada ao brilho máximo`,
+    ] : [
+      `# Método: centro de gravidade. centroide = soma(a_k · r_k) / soma(a_k), com r_k = f_k / f0 e ${n} parciais`,
+      `# A faixa de 1 a ${n} (×f0) vai de ${mapa.lambdaIni} nm a ${mapa.lambdaFim} nm, ${mapa.escala === 'oit' ? 'linear em oitavas (log2 da razão)' : 'linear na razão'}; interpolação na frequência da luz (c / λ). A cor do timbre é a luz pura do centroide; lambda_k é a luz de cada parcial na mesma faixa`,
+    ]),
+    '# Cor de cada λ: aproximação de Dan Bruton (1996) para desenhar o espectro em monitores (degradê por trechos, gama 0,8, escurecendo abaixo de 420 nm e acima de 700 nm)',
+    escala === 'db'
+      ? `# a_k = nível da k-ésima parcial em dB NPS, supondo a fundamental a ${NIVEL_FUNDAMENTAL_DB_NPS} dB NPS (0 dB NPS = limiar de audição a 1 kHz); abaixo de 0 ou não encontrada = 0`
+      : '# a_k = amplitude linear da k-ésima parcial (fundamental = 1); parcial não encontrada = 0',
+    br ? '# Formato: separador ";" e vírgula decimal (Excel em português)' : '# Format: comma-separated, dot as decimal mark',
+  ];
+  const cols = ['instrumento', 'familia', 'f0_Hz', 'f0_nota'];
+  for (let k = 1; k <= n; k++) cols.push(`f${k}_Hz`, `r${k}`, `lambda${k}_nm`, escala === 'db' ? `a${k}_dB_NPS` : `a${k}_linear`);
+  cols.push('centroide_xf0', 'lambda_cor_nm', 'R', 'G', 'B', 'hex');
+  linhas.push(cols.join(sep));
+  for (const { r, cor } of lista) {
+    const lin = [r.nome, r.familia, fmtNum(r.f0, 2, br), r.f0 ? nota(r.f0).nome : ''];
+    for (let k = 0; k < n; k++) {
+      const it = cor?.itens[k];
+      lin.push(it ? fmtNum(it.freq, 2, br) : '', it ? fmtNum(it.razao, 4, br) : '', it ? fmtNum(it.lambda, 1, br) : '', it ? fmtNum(it.peso, 5, br) : '');
+    }
+    if (cor) lin.push(fmtNum(cor.indice, 4, br), cor.centroide ? fmtNum(cor.centroide.lambda, 1, br) : '', ...cor.rgb, cor.hex);
+    else lin.push('', '', '', '', '', '');
     linhas.push(lin.map((c) => celula(c, sep)).join(sep));
   }
   return linhas.join('\r\n');

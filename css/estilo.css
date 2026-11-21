@@ -192,27 +192,49 @@ input[type="number"] { width: 6.5rem; }
 .f0-hz { font-size: 1.05rem; color: var(--texto-1); font-variant-numeric: tabular-nums; }
 .f0-origem { font-size: 0.85rem; color: var(--texto-2); }
 
-/* ---------- espectro + controles ao lado ---------- */
-.espectro-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 1rem; align-items: start; margin: 0.5rem 0; }
-.espectro-lateral { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
-@media (max-width: 820px) { .espectro-layout { grid-template-columns: minmax(0, 1fr); } }
-
-/* ---------- opções ---------- */
-.opcoes { border: 1px solid var(--grade); border-radius: 8px; padding: 0.75rem 0.9rem; margin: 0; min-width: 0; }
-.opcoes legend { font-weight: 600; padding: 0 0.3rem; }
-.opcao {
-  display: flex; gap: 0.6rem; align-items: flex-start; cursor: pointer;
-  padding: 0.5rem 0.55rem; border-radius: 8px; margin: 0.15rem 0;
-  border: 1px solid transparent;
+/* ---------- botão ⓘ e balão ---------- */
+.info {
+  appearance: none; display: inline-grid; place-items: center; flex-shrink: 0;
+  width: 1.3rem; height: 1.3rem; padding: 0; margin: 0 0 0 0.45rem; vertical-align: 0.1em;
+  border-radius: 50%; border: 1.5px solid var(--texto-2); background: transparent; color: var(--texto-2);
+  font: italic 700 0.8rem/1 Georgia, "Times New Roman", serif; cursor: pointer;
 }
-.opcao:hover { background: var(--superficie-2); }
-.opcao:has(input:checked) { background: var(--acento-lavado); border-color: var(--acento); }
-.opcao input { margin-top: 0.3rem; accent-color: var(--acento); flex-shrink: 0; }
-.opcao > span { display: flex; flex-direction: column; }
-.opcao .ajuda { margin: 0.15rem 0 0; font-size: 0.87rem; }
-.n-controle { display: flex; align-items: center; gap: 0.75rem; margin: 0.4rem 0; }
-.n-controle input { flex: 1; accent-color: var(--acento); }
-.n-controle output { font-size: 1.5rem; font-weight: 700; min-width: 2ch; text-align: right; font-variant-numeric: tabular-nums; }
+.info:hover, .info:focus-visible { border-color: var(--acento); color: var(--acento-texto); background: var(--acento-lavado); }
+.info:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+/* "invisível" ao toque: área de clique maior que o círculo */
+.info { position: relative; }
+.info::after { content: ""; position: absolute; inset: -0.5rem; }
+.balao {
+  position: absolute; inset: auto; margin: 0;
+  width: min(380px, calc(100vw - 32px)); max-height: 70vh; overflow: auto;
+  background: var(--superficie); color: var(--texto-1);
+  border: 1px solid var(--eixo); border-radius: 10px; padding: 0.75rem 0.95rem;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.18);
+  font-size: 0.9rem; line-height: 1.5; font-weight: 400;
+}
+.balao p { margin: 0 0 0.55rem; }
+.balao p:last-child { margin-bottom: 0; }
+
+/* ---------- barra de controles abaixo de um gráfico ---------- */
+.controles {
+  display: flex; flex-wrap: wrap; gap: 0.6rem 1.75rem; align-items: center;
+  background: var(--superficie-2); border-radius: 8px; padding: 0.55rem 0.85rem; margin: 0.5rem 0;
+  font-size: 0.93rem;
+}
+.grupo { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.6rem; min-height: 2.2rem; }
+.grupo-rotulo { font-weight: 600; color: var(--texto-1); }
+.grupo.linha-inteira { flex-basis: 100%; }
+.grupo .info { margin-left: 0; }
+.radio { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; color: var(--texto-2); }
+.radio:has(input:checked) { color: var(--texto-1); font-weight: 600; }
+.radio input { margin: 0; accent-color: var(--acento); width: 1rem; height: 1rem; }
+.grupo input[type="range"] { width: 150px; accent-color: var(--acento); }
+#n-valor { font-size: 1.1rem; font-weight: 700; min-width: 2ch; text-align: right; font-variant-numeric: tabular-nums; }
+output.nm { display: inline-flex; align-items: center; min-width: 5.6rem; font-variant-numeric: tabular-nums; }
+output.nm .cor-chip { width: 1rem; height: 1rem; }
+.btn-pequeno { min-height: 2rem; padding: 0.2rem 0.65rem; font-size: 0.85rem; }
+@media (max-width: 600px) { .grupo input[type="range"] { width: 120px; } .controles { gap: 0.4rem 1.25rem; } }
+h3 .info { width: 1.2rem; height: 1.2rem; }
 
 .config-compacta {
   display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; align-items: center;
@@ -255,6 +277,31 @@ table { border-collapse: collapse; font-size: 0.92rem; font-variant-numeric: tab
 .legenda-calor { display: flex; align-items: center; gap: 0.5rem; font-size: 0.85rem; color: var(--texto-2); margin: 0.5rem 0; flex-wrap: wrap; }
 .legenda-calor .rampa { display: inline-flex; border-radius: 4px; overflow: hidden; }
 .legenda-calor .rampa span { width: 1.6rem; height: 0.8rem; }
+
+/* ---------- cor do timbre ---------- */
+.cor-topo { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 1rem 1.5rem; align-items: center; margin: 0.5rem 0 0.75rem; }
+@media (max-width: 560px) { .cor-topo { grid-template-columns: minmax(0, 1fr); } }
+.cor-resultado { min-width: 0; }
+.cor-resultado .cor-valores { margin-top: 0; }
+.faixa-wrap { margin: 0.25rem 0 0; }
+#faixa-cor { display: block; width: 100%; height: 112px; }
+.cor-amostra {
+  height: 120px; border-radius: var(--raio); border: 1px solid var(--borda);
+  display: flex; align-items: flex-end; padding: 0.6rem 0.8rem;
+  font-size: 1.35rem; font-weight: 700; letter-spacing: 0.03em; font-variant-numeric: tabular-nums;
+  transition: background-color 0.15s;
+}
+.cor-valores { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.5rem 1rem; margin: 0.75rem 0 0.25rem; }
+.cor-valores dt { font-size: 0.82rem; color: var(--texto-2); }
+.cor-valores dd { margin: 0; font-size: 1.15rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+.cor-valores dd small { font-size: 0.8rem; font-weight: 500; color: var(--texto-2); }
+.tabela-parciais.tabela-cor { min-width: 0; max-width: 820px; }
+.tabela-cor tr.centro td { font-weight: 650; border-top: 2px solid var(--eixo); }
+@media (max-width: 600px) { .tabela-cor td:nth-child(3), .tabela-cor th:nth-child(3) { display: none; } }
+@media (max-width: 600px) { .tabela-cor td:nth-child(2), .tabela-cor th:nth-child(2) { display: none; } }
+
+.tabela-geral td.cor-cel { font-size: 0.8rem; color: var(--texto-2); text-align: left; }
+.cor-chip { display: inline-block; width: 1.5rem; height: 1.1rem; border-radius: 4px; vertical-align: middle; margin-right: 0.35rem; border: 1px solid var(--borda); }
 
 /* ---------- descritores ---------- */
 .descritores { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; }

@@ -1,9 +1,8 @@
 # Parciais do Timbre
 
 Aplicativo web desenvolvido para auxiliar uma pesquisa de mestrado em música sobre o
-mapeamento de timbres instrumentais em cores. A proposta da pesquisa é usar as primeiras
-parciais de cada timbre para calculá-lo como um ângulo no círculo cromático. Este app cuida
-da etapa anterior: **extrair e organizar as parciais**.
+mapeamento de timbres instrumentais em cores. O app **extrai e organiza as parciais** de cada
+timbre e as transforma numa cor do espectro visível.
 
 Os áudios são de 23 instrumentos tocando a nota Lá, cada um na região de melhor projeção e
 controle do instrumento, além de um tutti com todos juntos.
@@ -13,6 +12,10 @@ controle do instrumento, além de um tutti com todos juntos.
 - Mostra o espectro de cada instrumento e identifica a fundamental e as parciais.
 - Lista, para cada parcial, a frequência, a razão em relação à fundamental, a nota mais
   próxima e a amplitude (em dB, com a fundamental em 0 dB).
+- Calcula a cor do timbre: o centro de gravidade das parciais (razão f ÷ f0 pesada pela
+  amplitude) é levado, por uma função linear, a uma cor do espectro visível; as cores das
+  pontas da faixa são ajustáveis. Há também a opção de misturar as luzes das parciais,
+  mapeando a faixa audível (20 Hz a 20 kHz).
 - Compara instrumentos lado a lado e reúne todos em uma tabela geral.
 - Exporta os dados em CSV (formato do Excel em português ou internacional) e em JSON.
 
